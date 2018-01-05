@@ -2267,3 +2267,56 @@ void CWallet::UpdatedTransaction(const uint256 &hashTx)
             NotifyTransactionChanged(this, hashTx, CT_UPDATED);
     }
 }
+
+// ######Agregado por importaddress #####
+
+bool CWallet::AddWatchOnly(const CScript& dest, int64_t nCreateTime, const CKeyID& destID)
+{
+	if (!CCryptoKeyStore::AddWatchOnly(dest, destID))
+    return false;
+
+return CWalletDB(strWalletFile).WriteWatchOnly(dest);
+}
+
+
+bool CWallet::RemoveWatchOnly(const CScript &dest)
+{
+    if (!CCryptoKeyStore::RemoveWatchOnly(dest))
+        return false;
+    if (!CWalletDB(strWalletFile).EraseWatchOnly(dest))
+        return false;
+
+    return true;
+}
+
+bool CWallet::LoadWatchOnly(const CScript &dest)
+{
+	std::vector<valtype> vSolutions;
+	    txnouttype whichType;
+	    CKeyID FKeyID;
+	    if (!Solver(dest, whichType, vSolutions))
+	        return false;
+
+	    switch (whichType)
+	    {
+	    case TX_NONSTANDARD:
+	    	return false;
+	    case TX_PUBKEY:{
+	        FKeyID = CPubKey(vSolutions[0]).GetID();
+	        //LogPrintf("Se importo una PUBKEY - ");
+	        break;}
+	    case TX_PUBKEYHASH:{
+	    	FKeyID=CKeyID(uint160(vSolutions[0]));
+	    	//LogPrintf("Se importo una PUBKEYHASH - ");
+	    	break;}
+	    case TX_SCRIPTHASH:
+	    {
+            return false;
+	    }
+	    case TX_MULTISIG:{
+	    	return false;
+	    }
+	    }
+	return CCryptoKeyStore::AddWatchOnly(dest,FKeyID);
+}
+
